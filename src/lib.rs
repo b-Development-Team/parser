@@ -5,8 +5,8 @@ use crate::parser::Type::PROGRAM;
 
 #[pyfunction]
 fn parse_wrapped(str: &str) -> PyResult<Property> {
-    let code = str.to_string();
-    Ok(parse(&mut code.clone(), PROGRAM, 0, 1,&mut vec![]))
+    let code = str.trim().to_string();
+    Ok(parse(&mut code.clone(), PROGRAM, 0, 1, 0, &mut vec![]))
 }
 
 #[pymodule]

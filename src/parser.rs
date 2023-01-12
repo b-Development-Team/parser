@@ -60,7 +60,7 @@ fn vecu8_to_str(vecu8: Vec<u8>) -> String {
     return String::from_utf8(vecu8).unwrap();
 }
 
-pub fn parse(code: &String, val_type: Type, start: usize, line: usize, buffer: &mut Vec<u8>) -> Property {
+pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: usize, buffer: &mut Vec<u8>) -> Property {
     let mut arr = Property {
         val_type,
         raw: String::new(),
@@ -77,12 +77,26 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, buffer: &
     while i < code.len() {
         let character = code.as_bytes().get(i).unwrap();
 
-        if string_mode {
+        if depth == 0 {
+            match character {
+                91 => {
+                    // TODO: Duplicated code
+                    let func = parse(code, FUNCTION, i + 1, arr.line, depth + 1, buffer);
+                    i = func.end;
+                    arr.line = func.line;
+
+                    arr.children.push(func);
+                }
+                _ => buffer.push(*character)
+            }
+
+            // This pushes the buffer if we're at the end
+        } else if string_mode {
             match character {
                 34 => {
                     arr.children.push(Property {
                         start: string_mode_i,
-                        end: i + 1,
+                        end: i - 1,
                         line: arr.line,
                         val_type: STRING,
                         raw: vecu8_to_str(buffer.clone()),
@@ -96,21 +110,16 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, buffer: &
         } else {
             match character {
                 91 => { // "["
-                    let func = parse(code, FUNCTION, i + 1, arr.line, buffer);
+                    let func = parse(code, FUNCTION, i + 1, arr.line, depth + 1, buffer);
                     i = func.end;
                     arr.line = func.line;
 
                     arr.children.push(func);
                 }
-                93 => break, // "]"
-                34 => { // "
-                    string_mode_i = i;
-                    string_mode = !string_mode;
-                }
-                32 => { // " "
-                    if buffer.len() > 0 {
+                93 => { // "]"
+                    if !buffer.is_empty() {
                         arr.children.push(Property {
-                            start: i - buffer.len(),
+                            start: i - buffer.len() - 1,
                             end: i,
                             line: arr.line,
                             val_type: get_type(buffer),
@@ -119,19 +128,41 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, buffer: &
                         });
                         buffer.clear();
                     }
+
+                    arr.start = arr.start.saturating_sub(1);
+                    arr.end = i;
+                    return arr;
+                },
+                34 => { // "
+                    string_mode_i = i;
+                    string_mode = !string_mode;
                 }
-                10 => arr.line += 1, // "\n"
+                32 => { // " "
+                    if !buffer.is_empty() {
+                        arr.children.push(Property {
+                            start: i - buffer.len(),
+                            end: i - 1,
+                            line: arr.line,
+                            val_type: get_type(buffer),
+                            raw: vecu8_to_str(buffer.clone()),
+                            children: vec![],
+                        });
+                        buffer.clear();
+                    }
+                }
+                // 10 => arr.line += 1, // "\n"
                 _ => buffer.push(*character)
             }
         }
         i += 1;
     }
 
-    arr.end = start + i;
+    // TODO: end-line character is only a problem in debug mode
+    // if !buffer.is_empty() && !buffer.ends_with(&[10]) {
     if !buffer.is_empty() {
         arr.children.push(Property {
-            start,
-            end: start + buffer.len(),
+            start: i - buffer.len(),
+            end: i - 1,
             line: arr.line,
             val_type: get_type(buffer),
             raw: vecu8_to_str(buffer.clone()),
@@ -139,6 +170,5 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, buffer: &
         });
         buffer.clear();
     }
-
     return arr;
 }
