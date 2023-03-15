@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use crate::parser::Type::{INTEGER, FLOAT, STRING, FUNCTION};
 
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Type {
     INTEGER,
     FLOAT,
@@ -18,13 +18,13 @@ pub struct Property {
     pub(crate) start: usize,
 
     #[pyo3(get)]
-    end: usize,
+    pub(crate) end: usize,
 
     #[pyo3(get)]
     line: usize,
 
     #[pyo3(get, set)]
-    val_type: Type,
+    pub(crate) val_type: Type,
 
     #[pyo3(get, set)]
     pub(crate) raw: String,
@@ -60,7 +60,7 @@ fn vecu8_to_str(vecu8: Vec<u8>) -> String {
     return String::from_utf8(vecu8).unwrap();
 }
 
-fn flush_buffer(buffer: &mut Vec<u8>, arr: &mut Property, start: usize, end: usize) {
+/* fn flush_buffer(buffer: &mut Vec<u8>, arr: &mut Property, start: usize, end: usize) {
     if !buffer.is_empty() {
         arr.children.push(Property {
             start,
@@ -72,7 +72,7 @@ fn flush_buffer(buffer: &mut Vec<u8>, arr: &mut Property, start: usize, end: usi
         });
         buffer.clear();
     }
-}
+} */
 
 pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: usize, buffer: &mut Vec<u8>) -> Property {
     let mut arr = Property {

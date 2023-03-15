@@ -4,7 +4,6 @@ use crate::parser::parse;
 use crate::parser::Type::PROGRAM;
 use crate::parser::Property;
 use std::io;
-use std::io::prelude::*;
 
 fn main() {
     let mut buffer = vec![];
@@ -39,9 +38,11 @@ fn main() {
 fn pretty_print_tree(tree: &Property, level: usize) {
     let indent = "  ".repeat(level);
     println!(
-        "{}[{}]: {}",
+        "{}[{}-{}] {:?}: {}",
         indent,
         tree.start,
+        tree.end,
+        tree.val_type,
         tree.raw.trim_end_matches('\n')
     );
     for child in &tree.children {
