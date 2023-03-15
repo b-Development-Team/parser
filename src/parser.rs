@@ -15,7 +15,7 @@ pub enum Type {
 #[derive(Clone)]
 pub struct Property {
     #[pyo3(get)]
-    start: usize,
+    pub(crate) start: usize,
 
     #[pyo3(get)]
     end: usize,
@@ -27,10 +27,10 @@ pub struct Property {
     val_type: Type,
 
     #[pyo3(get, set)]
-    raw: String,
+    pub(crate) raw: String,
 
     #[pyo3(get, set)]
-    children: Vec<Property>
+    pub(crate) children: Vec<Property>
 }
 
 fn is_integer(vec: &mut Vec<u8>) -> bool {
@@ -60,6 +60,20 @@ fn vecu8_to_str(vecu8: Vec<u8>) -> String {
     return String::from_utf8(vecu8).unwrap();
 }
 
+fn flush_buffer(buffer: &mut Vec<u8>, arr: &mut Property, start: usize, end: usize) {
+    if !buffer.is_empty() {
+        arr.children.push(Property {
+            start,
+            end,
+            line: arr.line,
+            val_type: get_type(buffer),
+            raw: vecu8_to_str(buffer.clone()),
+            children: vec![],
+        });
+        buffer.clear();
+    }
+}
+
 pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: usize, buffer: &mut Vec<u8>) -> Property {
     let mut arr = Property {
         val_type,
@@ -74,12 +88,28 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: us
     let mut string_mode_i = 0;
 
     let mut i = start;
+    let mut prev_character: u8 = 0;
     while i < code.len() {
         let character = code.as_bytes().get(i).unwrap();
 
         if depth == 0 {
             match character {
                 91 => {
+                    // if !buffer.is_empty() {
+                    //     flush_buffer(buffer, &mut arr, i - buffer.len(), i - 1);
+                    // }
+                    if !buffer.is_empty() {
+                        arr.children.push(Property {
+                            start: i - buffer.len(),
+                            end: i - 1,
+                            line: arr.line,
+                            val_type: get_type(buffer),
+                            raw: vecu8_to_str(buffer.clone()),
+                            children: vec![],
+                        });
+                        buffer.clear();
+                    }
+
                     // TODO: Duplicated code
                     let func = parse(code, FUNCTION, i + 1, arr.line, depth + 1, buffer);
                     i = func.end;
@@ -94,6 +124,7 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: us
         } else if string_mode {
             match character {
                 34 => {
+                    // flush_buffer(buffer, &mut arr, string_mode_i, i - 1);
                     arr.children.push(Property {
                         start: string_mode_i,
                         end: i - 1,
@@ -117,6 +148,7 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: us
                     arr.children.push(func);
                 }
                 93 => { // "]"
+                    // flush_buffer(buffer, &mut arr, i - buffer.len() - 1, i);
                     if !buffer.is_empty() {
                         arr.children.push(Property {
                             start: i - buffer.len() - 1,
@@ -138,6 +170,7 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: us
                     string_mode = !string_mode;
                 }
                 32 => { // " "
+                    // flush_buffer(buffer, &mut arr, i - buffer.len(), i - 1);
                     if !buffer.is_empty() {
                         arr.children.push(Property {
                             start: i - buffer.len(),
@@ -150,15 +183,21 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: us
                         buffer.clear();
                     }
                 }
-                // 10 => arr.line += 1, // "\n"
+                10 => {
+                    if prev_character != 10 {
+                        arr.line += 1
+                    }
+                }, // "\n"
                 _ => buffer.push(*character)
             }
         }
+        prev_character = *character;
         i += 1;
     }
 
     // TODO: end-line character is only a problem in debug mode
     // if !buffer.is_empty() && !buffer.ends_with(&[10]) {
+    // flush_buffer(buffer, &mut arr, i - buffer.len(), i - 1);
     if !buffer.is_empty() {
         arr.children.push(Property {
             start: i - buffer.len(),
