@@ -1,6 +1,6 @@
 # B* Parser
 ![](tree.png)
-<sup>Output tree as of 0.1.0</sup>
+<sup>Output tree as of 0.2.2</sup>
 ## Building Instructions
 
 ### Prerequisites
