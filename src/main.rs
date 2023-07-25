@@ -38,10 +38,11 @@ fn main() {
 fn pretty_print_tree(tree: &Property, level: usize) {
     let indent = "  ".repeat(level);
     println!(
-        "{}[{}-{}] {:?}: {}",
+        "{}[{}-{}] [LINE {}] {:?}: {}",
         indent,
         tree.start,
         tree.end,
+        tree.line,
         tree.val_type,
         tree.raw.trim_end_matches('\n')
     );

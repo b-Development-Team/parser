@@ -21,7 +21,7 @@ pub struct Property {
     pub(crate) end: usize,
 
     #[pyo3(get)]
-    line: usize,
+    pub(crate) line: usize,
 
     #[pyo3(get, set)]
     pub(crate) val_type: Type,
@@ -94,7 +94,7 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: us
 
         if depth == 0 {
             match character {
-                91 => {
+                91 => { // "["
                     // if !buffer.is_empty() {
                     //     flush_buffer(buffer, &mut arr, i - buffer.len(), i - 1);
                     // }
@@ -116,14 +116,19 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: us
                     arr.line = func.line;
 
                     arr.children.push(func);
-                }
+                },
+                10 => {
+                    if prev_character != 10 {
+                        arr.line += 1
+                    }
+                }, // "\n"
                 _ => buffer.push(*character)
             }
 
             // This pushes the buffer if we're at the end
         } else if string_mode {
             match character {
-                34 => {
+                34 => { // "
                     // flush_buffer(buffer, &mut arr, string_mode_i, i - 1);
                     arr.children.push(Property {
                         start: string_mode_i,
@@ -183,11 +188,6 @@ pub fn parse(code: &String, val_type: Type, start: usize, line: usize, depth: us
                         buffer.clear();
                     }
                 }
-                10 => {
-                    if prev_character != 10 {
-                        arr.line += 1
-                    }
-                }, // "\n"
                 _ => buffer.push(*character)
             }
         }
